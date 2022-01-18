@@ -12,9 +12,10 @@ from pwn import *
 def banner():           
     cprint("┌─┐┬ ┬┌┬┐┌─┐┌┬┐┌─┐┌─┐",'green')
     cprint("├─┤│ │ │ │ ││││├─┤├─┘",'green')
-    cprint("┴ ┴└─┘ ┴ └─┘┴ ┴┴ ┴┴  v1.0",'green')
+    cprint("┴ ┴└─┘ ┴ └─┘┴ ┴┴ ┴┴  v1.1",'green')
     cprint("Automatic scanning of multiple hosts using nmap",'yellow')
     cprint("Author: evilmorty",'yellow')
+    cprint("Speed of scanning : FAST (T5 and min-rate=5000)",'yellow')
 
 def def_handler(sing, frame):
     cprint('Canceled by user', 'white', 'on_red')
@@ -28,7 +29,7 @@ def createFolder(directory):
         return False
 
 def hostUp(ip):
-    command = "ping -c 1 "+ip
+    command = "timeout 1 ping -c 1 "+ip
     args = shlex.split(command)
     p = subprocess.Popen(args, stderr=STDOUT, stdout=PIPE)  # return string not bytes
     p.communicate()
@@ -47,7 +48,7 @@ def validateIp(ip):
         return False
 
 def nmap_allports(ip):
-    command = "nmap -sS -p- --open -n " + ip + " -oG allPorts"
+    command = "nmap -sS -p- -T5 --min-rate 5000 --open -n " + ip + " -oG allPorts"
     args = shlex.split(command)
     p=subprocess.Popen(args, stderr=STDOUT, stdout=PIPE)
     p.communicate()
@@ -136,56 +137,50 @@ if __name__ == '__main__':
                 while line:
                     p1 = log.progress(line.rstrip(string.whitespace))
                     p1.status("Running..")
+                    
                     sleep(1)
+                    p1.status("Checking if the IP is valid..")
                     if validateIp(line) is True:
-                        p1.status("Validating if the IP is valid..")
                         cprint("\t[✔] Valid IP",'green')
+                        
+                        p1.status("Validating if the host is up..")
                         if hostUp(line) is True:
-                            p1.status("Validating if the host is up..")
                             cprint("\t[✔] The host is up",'green')
                             sleep(1)
                             createFolder(output+line.strip())
                             os.chdir(output+line.strip())
+                            
                             p1.status("Scanning...")
                             if nmap_allports(line) is True:
                                 cprint("\t[✔] Open ports : "+nmap_extractPorts(),'green',end="", flush=True)
+                                
                                 p1.status("Getting details of open ports...")
                                 if nmap_targeted(line,nmap_extractPorts()) is True:
                                     cprint("\t[✔] Detail of services",'green')
+                                    
                                     p1.status("Creating report...")
                                     if nmap_html() is True:
                                         cprint("\t[✔] Report generated",'green')
+                                        p1.success("Succesfully")
+                                        
                                     else:
-                                        cprint("\t[✔] Valid IP",'green')
-                                        cprint("\t[✔] The host is up",'green')
-                                        cprint("\t[✔] Scan all ports",'green')
-                                        cprint("\t[✔] Detail of services",'green')
-                                        cprint("\t[✖] Report generated",'red')
+                                        cprint("\t[✖] Can't generate the report",'red')
                                         p1.failure("Failed")
                                 else:
-                                    cprint("\t[✔] Valid IP",'green')
-                                    cprint("\t[✔] The host is up",'green')
-                                    cprint("\t[✔] Scan all ports",'green')
-                                    cprint("\t[✖] Detail of services",'green')
+                                    cprint("\t[✖] Can't obtain detail of open ports",'green')
                                     p1.failure("Failed")
                             else:
-                                cprint("\t[✔] Valid IP",'green')
-                                cprint("\t[✔] The host is up",'green')
-                                cprint("\t[✖] Scan all ports",'red')
+                                cprint("\t[✖] Scan failed, please check the host",'red')
                                 p1.failure("Failed")
 
                             os.chdir('..')
 
                         else:
-                            cprint("\t[✔] Valid IP",'green')
-                            cprint("\t[✖] The host is up",'red')
+                            cprint("\t[✖] The host is down, please check it",'red')
                             p1.failure("Failed")         
                     else:
-                        cprint("\t[✖] Valid IP",'red')
+                        cprint("\t[✖] Invalid IP, please check it",'red')
                         p1.failure("Failed")
+                    
                     line = fp.readline()
                     cnt = cnt+1
-
-            p1 = log.success("Succesfully")
-
-    
